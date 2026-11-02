@@ -1,6 +1,6 @@
 {
   "name": "com.addressableswork.loader",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "displayName": "AddressablesWork Loader",
   "description": "A 프로젝트가 공급한 Addressables 콘텐츠를 원격 카탈로그로 받아 주소로 생성·해제하는 공용 로더. 규칙 8장.",
   "unity": "6000.0",
@@ -10,7 +10,7 @@
   "samples": [
     {
       "displayName": "Basic Usage",
-      "description": "카탈로그 로드 → 라벨 목록·다운로드 크기 → 미리 다운로드 → 모델·텍스처·사운드·씬 로드/해제 → 갱신 확인. Tools → Addressables Loader → Create Basic Usage Scene",
+      "description": "v0.8~0.9 씬 호환용. 새로 쓸 때는 Import 하지 말고 Tools → AddressablesWork → Setup 을 쓴다 (RemoteContentBrowser)",
       "path": "Samples~/BasicUsage"
     }
   ]

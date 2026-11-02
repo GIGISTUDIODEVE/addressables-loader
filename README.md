@@ -2,19 +2,23 @@
 
 A 프로젝트(AddressablesWork)가 공급한 Addressables 콘텐츠를 받아 쓰는 공용 로더. 규칙 문서 8장을 코드로 옮긴 것.
 
-## 새 프로젝트에서 바로 쓰기 (Addressables가 없어도 됨)
+## 새 프로젝트에서 바로 쓰기
 
-1. **조건**: Unity **6000.0** 또는 **6000.6**, **URP** 프로젝트(Universal 3D 템플릿, Linear), Windows. Built-in 렌더 파이프라인이면 콘텐츠가 분홍색으로 나온다.
-2. `Packages/manifest.json`의 `dependencies`에 한 줄 추가 — Addressables 2.11.2와 그 의존 패키지는 자동으로 설치된다:
-   ```json
-   "com.addressableswork.loader": "https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.9.1"
+Unity **6000.0 / 6000.6**의 **URP 프로젝트**(Universal 3D 템플릿), Windows 기준.
+
+1. **패키지 설치** — Package Manager → **+ → Install package from git URL…** (또는 `Packages/manifest.json`의 `dependencies`에 한 줄):
    ```
-   (또는 **Package Manager → + → Install package from git URL…**에 같은 URL. git이 PATH에 있어야 한다)
-3. **Package Manager → AddressablesWork Loader → Samples → Basic Usage → Import**.
-4. **Tools → Addressables Loader → Create Basic Usage Scene** → Play. 기본 서버가 클라우드(GitHub Pages)라 설정할 것이 없다. **1. Load catalog → 2. Download all → Load all**.
+   https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.10.0
+   ```
+   Addressables(2.11.2)는 의존성으로 알아서 설치된다. 이미 설치돼 있으면 그대로 쓴다. git이 PATH에 있어야 한다.
+2. **Setup 창** — 설치가 끝나면 **Tools → AddressablesWork → Setup**이 한 번 자동으로 열린다(안 열리면 메뉴에서). 환경 점검이 빨간색 없이 나오는지 본다:
+   서버에 이 Unity 버전의 빌드가 있는지 / URP / Linear(버튼으로 바꿈) / Addressables 버전 / 빌드 타깃.
+3. **테스트 씬 만들고 Play** 버튼 → 화면 왼쪽 **1. Load catalog → 2. Download all → Load all**. 서버는 기본값(GitHub Pages)이라 설정할 것이 없다.
 
+- 샘플 Import는 필요 없다. 테스트 씬은 `Assets/AddressablesWork/RemoteContentTest.unity`, 컴포넌트는 `RemoteContentBrowser`(Add Component → AddressablesWork → Remote Content Browser로 다른 씬에도 붙일 수 있음).
 - 처음 로드할 때 콘솔에 빨간 오류 2개(`Invalid path in TextDataProvider ... settings.json`, `Unable to load runtime data`)가 찍힌다. 이 프로젝트에 Addressables 빌드가 없어서 나는 것이고 **동작에는 영향이 없다.**
-- 서버에 내 Unity 버전의 빌드가 없으면 샘플이 `no build for Unity <버전> on this server. Available: ...`라고 알려준다.
+- 서버에 내 Unity 버전의 빌드가 없으면 Setup 창과 브라우저가 `Available: 6000.0, 6000.6`처럼 있는 버전을 알려준다.
+- 명령줄 확인: `-executeMethod AddressablesWork.Loader.Editor.RemoteSetupWindow.BuildTestPlayerFromCommandLine [-setupOutput <exe>] [-setupServer <루트>]` → 점검 결과를 로그에 쓰고 테스트 씬으로 플레이어를 빌드한다.
 - HTTPS라 Player Settings의 HTTP 허용은 필요 없다. IL2CPP로 빌드하면 서버의 `link.xml`(카탈로그 옆)을 `Assets/`에 둔다.
 - 배포 저장소는 [GIGISTUDIODEVE/addressables-loader](https://github.com/GIGISTUDIODEVE/addressables-loader) (원본에서 `Tools/publish-loader.cmd`로 복사한 사본. 손으로 고치지 않는다). 콘텐츠 서버는 `https://gigistudiodeve.github.io/addressables-cdn/A/<Unity 마이너>/StandaloneWindows64/`.
 
@@ -60,9 +64,11 @@ if (changed.Succeeded && changed.Value)
 
 `LoadCatalogAsync`는 로드 직후 `.hash`를 한 번 더 읽어 둔다(읽기 실패해도 로드는 성공으로 본다).
 
-## 샘플: Basic Usage
+## RemoteContentBrowser (원격 콘텐츠 받아 보기)
 
-**Package Manager → AddressablesWork Loader → Samples → Basic Usage → Import** 뒤 **Tools → Addressables Loader → Create Basic Usage Scene**. 버튼으로 카탈로그 로드 → 라벨(`model`, `texture`, `audio`, `scene`)별 주소 목록·다운로드 크기 → 미리 다운로드 → 주소마다 Load/Release → 갱신 확인을 해 본다. 카탈로그 URL은 실행 중인 Unity 마이너 버전으로 자동으로 정한다. 기본 서버는 GitHub Pages이고, 로컬 서버로 보려면 `ServerRoot`를 `http://localhost:8080`으로 바꾼다. 자세한 것은 샘플 폴더의 `README.md`.
+버튼으로 카탈로그 로드 → 라벨(`model`, `texture`, `audio`, `scene`)별 주소 목록·다운로드 크기 → 미리 다운로드 → 주소마다 Load/Release → 갱신 확인을 해 본다. 카탈로그 URL은 실행 중인 Unity 마이너 버전으로 자동으로 정한다. 기본 서버는 GitHub Pages이고, 로컬 서버로 보려면 `ServerRoot`(또는 Setup 창의 "서버")를 `http://localhost:8080`으로 바꾼다. 플레이어 자동 확인: `-sampleAuto <폴더> [-sampleServer <루트>] [-sampleUnityVersion <버전>]`.
+
+`Samples~/BasicUsage`(v0.8 ~ v0.9)는 이 컴포넌트를 상속한 호환용 껍데기만 남았다.
 
 ## 확인용 씬
 
