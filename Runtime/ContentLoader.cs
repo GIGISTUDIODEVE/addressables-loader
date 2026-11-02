@@ -68,6 +68,13 @@ namespace AddressablesWork.Loader
                     return LoadResult.Ok;
                 }
 
+                if (failure.Failure == LoadFailure.Network)
+                {
+                    // 서버가 4xx(404 등)를 주면 그 주소에 카탈로그가 없다 — 다시 시도해도 같으므로 상태 코드를 붙여 바로 돌려준다
+                    long status = await FetchStatusAsync(catalogUrl);
+                    if (status >= 400 && status < 500)
+                        return new LoadResult(LoadFailure.Network, $"HTTP {status} — {failure.Message}", failure.Exception);
+                }
                 if (failure.Failure != LoadFailure.Network || attempt >= NetworkRetryCount)
                     return failure;
                 await Task.Delay(TimeSpan.FromSeconds(NetworkRetryDelaySeconds));
@@ -119,6 +126,15 @@ namespace AddressablesWork.Loader
             if (req.result != UnityEngine.Networking.UnityWebRequest.Result.Success)
                 return null;
             return req.downloadHandler.text.Trim();
+        }
+
+        // HTTP 상태 코드만 본다. 연결 자체가 안 되면 0.
+        static async Task<long> FetchStatusAsync(string url)
+        {
+            using var req = UnityEngine.Networking.UnityWebRequest.Head(url + "?t=" + DateTime.UtcNow.Ticks);
+            var op = req.SendWebRequest();
+            while (!op.isDone) await Task.Yield();
+            return req.responseCode;
         }
 
         // 소비자(B)에 Addressables 설정이 없으면 초기화가 실패 로그를 남기지만, 이후 원격 카탈로그 로드는 가능하다. [검증 필요]
@@ -302,10 +318,15 @@ namespace AddressablesWork.Loader
                     return new LoadResult(LoadFailure.Download, context + " — " + cur.Message, e);
             }
 
-            string msg = e.Message ?? string.Empty;
-            if (msg.Contains("Unable to load") || msg.Contains("Connection") || msg.Contains("HTTP") || msg.Contains("Insecure"))
-                return new LoadResult(LoadFailure.Network, context + " — " + msg, e);
-            return new LoadResult(LoadFailure.Unknown, context + " — " + msg, e);
+            // Addressables 는 원인(RemoteProviderException)을 로그로만 남기고 바깥 예외에 잇지 않을 때가 있다.
+            // 예: 카탈로그 404 → "ChainOperation failed ..." 안에 "Unable to load ContentCatalogData ...". 안쪽 메시지까지 본다.
+            for (var cur = e; cur != null; cur = cur.InnerException)
+            {
+                string msg = cur.Message ?? string.Empty;
+                if (msg.Contains("Unable to load") || msg.Contains("Connection") || msg.Contains("HTTP") || msg.Contains("Insecure"))
+                    return new LoadResult(LoadFailure.Network, context + " — " + msg, e);
+            }
+            return new LoadResult(LoadFailure.Unknown, context + " — " + e.Message, e);
         }
     }
 }

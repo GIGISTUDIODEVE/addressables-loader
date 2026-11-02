@@ -7,7 +7,7 @@ A 프로젝트(AddressablesWork)가 공급한 Addressables 콘텐츠를 받아 �
 1. **조건**: Unity **6000.0** 또는 **6000.6**, **URP** 프로젝트(Universal 3D 템플릿, Linear), Windows. Built-in 렌더 파이프라인이면 콘텐츠가 분홍색으로 나온다.
 2. `Packages/manifest.json`의 `dependencies`에 한 줄 추가 — Addressables 2.11.2와 그 의존 패키지는 자동으로 설치된다:
    ```json
-   "com.addressableswork.loader": "https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.9.0"
+   "com.addressableswork.loader": "https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.9.1"
    ```
    (또는 **Package Manager → + → Install package from git URL…**에 같은 URL. git이 PATH에 있어야 한다)
 3. **Package Manager → AddressablesWork Loader → Samples → Basic Usage → Import**.
