@@ -4,11 +4,11 @@ A 프로젝트(AddressablesWork)가 공급한 Addressables 콘텐츠를 받아 �
 
 ## 새 프로젝트에서 바로 쓰기
 
-Unity **6000.0 / 6000.6**의 **URP 프로젝트**(Universal 3D 템플릿), Windows 기준.
+Unity **6000.0 / 6000.2 / 6000.6**의 **URP 프로젝트**(Universal 3D 템플릿), Windows 기준.
 
 1. **패키지 설치** — Package Manager → **+ → Install package from git URL…** (또는 `Packages/manifest.json`의 `dependencies`에 한 줄):
    ```
-   https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.10.0
+   https://github.com/GIGISTUDIODEVE/addressables-loader.git#v0.11.0
    ```
    Addressables(2.11.2)는 의존성으로 알아서 설치된다. 이미 설치돼 있으면 그대로 쓴다. git이 PATH에 있어야 한다.
 2. **Setup 창** — 설치가 끝나면 **Tools → AddressablesWork → Setup**이 한 번 자동으로 열린다(안 열리면 메뉴에서). 환경 점검이 빨간색 없이 나오는지 본다:
@@ -17,7 +17,9 @@ Unity **6000.0 / 6000.6**의 **URP 프로젝트**(Universal 3D 템플릿), Windo
 
 - 샘플 Import는 필요 없다. 테스트 씬은 `Assets/AddressablesWork/RemoteContentTest.unity`, 컴포넌트는 `RemoteContentBrowser`(Add Component → AddressablesWork → Remote Content Browser로 다른 씬에도 붙일 수 있음).
 - 처음 로드할 때 콘솔에 빨간 오류 2개(`Invalid path in TextDataProvider ... settings.json`, `Unable to load runtime data`)가 찍힌다. 이 프로젝트에 Addressables 빌드가 없어서 나는 것이고 **동작에는 영향이 없다.**
-- 서버에 내 Unity 버전의 빌드가 없으면 Setup 창과 브라우저가 `Available: 6000.0, 6000.6`처럼 있는 버전을 알려준다.
+- 서버에 내 Unity 버전의 빌드가 없으면 **같은 메이저의 가장 가까운 하위 버전** 빌드를 받는다(예: 6000.3 → 6000.2). Setup 창은 노란색으로, 브라우저는 `using lower version 6000.2 (not guaranteed, R1-2)`로 알린다. 동작은 보장되지 않으므로 정확한 버전 빌드를 A에 요청한다. 상위 버전 빌드는 옛 Unity가 읽지 못해서 고르지 않는다. 끄려면 `RemoteContentBrowser.AllowLowerVersion`을 끈다(플레이어 인자 `-sampleNoFallback`).
+- 하위 버전도 없으면 `Available: 6000.0, 6000.2, 6000.6`처럼 있는 버전을 알려준다.
+- 직접 코드로 받을 때: `ServerVersions.FetchAsync(루트)` → `ServerVersions.Pick(목록, RemoteContentBrowser.UnityMinor(), true, out bool exact)`로 받을 버전 폴더를 고른다.
 - 명령줄 확인: `-executeMethod AddressablesWork.Loader.Editor.RemoteSetupWindow.BuildTestPlayerFromCommandLine [-setupOutput <exe>] [-setupServer <루트>]` → 점검 결과를 로그에 쓰고 테스트 씬으로 플레이어를 빌드한다.
 - HTTPS라 Player Settings의 HTTP 허용은 필요 없다. IL2CPP로 빌드하면 서버의 `link.xml`(카탈로그 옆)을 `Assets/`에 둔다.
 - 배포 저장소는 [GIGISTUDIODEVE/addressables-loader](https://github.com/GIGISTUDIODEVE/addressables-loader) (원본에서 `Tools/publish-loader.cmd`로 복사한 사본. 손으로 고치지 않는다). 콘텐츠 서버는 `https://gigistudiodeve.github.io/addressables-cdn/A/<Unity 마이너>/StandaloneWindows64/`.

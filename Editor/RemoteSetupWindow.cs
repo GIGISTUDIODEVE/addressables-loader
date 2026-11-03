@@ -70,15 +70,13 @@ namespace AddressablesWork.Loader.Editor
             Repaint();
         }
 
-        [Serializable] sealed class VersionList { public string[] versions; }
-
         static string[] ParseVersions(UnityWebRequest req, out string error)
         {
             error = null;
             if (req.result != UnityWebRequest.Result.Success) { error = $"{req.error} ({req.url})"; return null; }
-            var list = JsonUtility.FromJson<VersionList>(req.downloadHandler.text);
-            if (list?.versions == null) { error = "versions.json 형식이 다르다"; return null; }
-            return list.versions;
+            string[] versions = ServerVersions.Parse(req.downloadHandler.text);
+            if (versions == null) error = "versions.json 형식이 다르다";
+            return versions;
         }
 
         // ---------------------------------------------------------------- 점검 (창과 명령줄 공용)
@@ -91,11 +89,19 @@ namespace AddressablesWork.Loader.Editor
             if (serverVersions == null)
                 checks.Add(new Check(serverError == null ? State.Warn : State.Fail, $"서버의 Unity {minor} 빌드",
                     serverError == null ? "확인 중…" : "서버 목록을 읽지 못함: " + serverError));
-            else if (serverVersions.Contains(minor))
-                checks.Add(new Check(State.Ok, $"서버의 Unity {minor} 빌드", "있음"));
             else
-                checks.Add(new Check(State.Fail, $"서버의 Unity {minor} 빌드",
-                    $"없음. 서버에 있는 버전: {string.Join(", ", serverVersions)} — 그 버전 에디터로 연 프로젝트에서 쓰거나, A 에 이 버전 빌드를 요청한다"));
+            {
+                // RemoteContentBrowser.AllowLowerVersion 기본값(true)과 같은 규칙으로 고른다 (R1-2)
+                string pick = ServerVersions.Pick(serverVersions, minor, true, out bool exact);
+                if (exact)
+                    checks.Add(new Check(State.Ok, $"서버의 Unity {minor} 빌드", "있음"));
+                else if (pick != null)
+                    checks.Add(new Check(State.Warn, $"서버의 Unity {minor} 빌드",
+                        $"없음 → 하위 버전 {pick} 빌드를 받는다 (보장 안 됨). 서버에 있는 버전: {string.Join(", ", serverVersions)} — 정확한 버전은 A 에 요청한다"));
+                else
+                    checks.Add(new Check(State.Fail, $"서버의 Unity {minor} 빌드",
+                        $"없음 (이 버전 이하도 없음). 서버에 있는 버전: {string.Join(", ", serverVersions)} — 그 버전 에디터로 연 프로젝트에서 쓰거나, A 에 이 버전 빌드를 요청한다"));
+            }
 
             var rp = GraphicsSettings.currentRenderPipeline;
             if (rp != null && rp.GetType().Name.Contains("Universal"))
@@ -187,7 +193,8 @@ namespace AddressablesWork.Loader.Editor
             }
             if (GUILayout.Button("다시 점검", GUILayout.Width(72))) FetchVersions();
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.LabelField("카탈로그", $"{m_ServerRoot.TrimEnd('/')}/{RemoteContentBrowser.UnityMinor()}/{RemoteContentBrowser.PlatformFolder()}/catalog_content.bin", EditorStyles.miniLabel);
+            string serverMinor = ServerVersions.Pick(m_ServerVersions, RemoteContentBrowser.UnityMinor(), true, out _) ?? RemoteContentBrowser.UnityMinor();
+            EditorGUILayout.LabelField("카탈로그", $"{m_ServerRoot.TrimEnd('/')}/{serverMinor}/{RemoteContentBrowser.PlatformFolder()}/catalog_content.bin", EditorStyles.miniLabel);
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("환경 점검", EditorStyles.boldLabel);

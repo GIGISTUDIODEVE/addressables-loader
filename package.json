@@ -1,6 +1,6 @@
 {
   "name": "com.addressableswork.loader",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "displayName": "AddressablesWork Loader",
   "description": "A 프로젝트가 공급한 Addressables 콘텐츠를 원격 카탈로그로 받아 주소로 생성·해제하는 공용 로더. 규칙 8장.",
   "unity": "6000.0",

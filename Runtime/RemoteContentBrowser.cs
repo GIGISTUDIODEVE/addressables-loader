@@ -30,6 +30,9 @@ namespace AddressablesWork.Loader
         [Tooltip("환경 씬을 올린 동안 이 씬의 Light 를 끈다. 켜 두면 베이크된 씬이 이중으로 밝아진다 (R11-2)")]
         public bool DisableOwnLightsWhileSceneLoaded = true;
 
+        [Tooltip("서버에 이 Unity 마이너 버전의 빌드가 없으면 같은 메이저의 가장 가까운 하위 버전 빌드를 받는다 (R1-2). 경고를 남기고, 동작은 보장되지 않는다")]
+        public bool AllowLowerVersion = true;
+
         // 목록 한 줄. 주소 하나가 여러 라벨에 있으면 첫 라벨에만 넣는다
         sealed class Entry
         {
@@ -50,9 +53,10 @@ namespace AddressablesWork.Loader
         float m_Progress = -1f;
         Vector2 m_Scroll;
         string m_UnityMinor;
+        string m_ServerMinor;       // 실제로 받는 버전. 하위 버전으로 대체하면 Minor 와 다르다
 
-        /// <summary>이 플레이어의 Unity 마이너 버전·플랫폼에 맞는 카탈로그 (R1-2: 버전마다 따로 빌드한 번들을 받는다).</summary>
-        public string CatalogUrl => $"{ServerRoot.TrimEnd('/')}/{Minor}/{PlatformFolder()}/catalog_content.bin";
+        /// <summary>이 플레이어의 Unity 마이너 버전(또는 대체한 하위 버전)·플랫폼에 맞는 카탈로그 (R1-2: 버전마다 따로 빌드한 번들을 받는다).</summary>
+        public string CatalogUrl => $"{ServerRoot.TrimEnd('/')}/{m_ServerMinor ?? Minor}/{PlatformFolder()}/catalog_content.bin";
 
         string Minor => string.IsNullOrEmpty(m_UnityMinor) ? UnityMinor() : m_UnityMinor;
 
@@ -60,32 +64,35 @@ namespace AddressablesWork.Loader
 
         public async Task LoadCatalogAsync()
         {
+            // 클라우드 업로드 스크립트가 <루트>/versions.json 에 올린 목록으로 받을 버전을 고른다. 로컬 서버에는 없으므로 이 버전을 그대로 쓴다
+            string[] versions = await ServerVersions.FetchAsync(ServerRoot);
+            m_ServerMinor = null;
+            if (versions != null)
+            {
+                string pick = ServerVersions.Pick(versions, Minor, AllowLowerVersion, out bool exact);
+                if (pick == null)
+                {
+                    Log($"no build for Unity {Minor} on this server" + (AllowLowerVersion ? " (and no lower version)" : "") +
+                        $". Available: {string.Join(", ", versions)}");
+                    m_CatalogLoaded = false;
+                    return;
+                }
+                m_ServerMinor = pick;
+                if (!exact)
+                {
+                    Log($"no build for Unity {Minor}; using lower version {pick} (not guaranteed, R1-2)");
+                    Debug.LogWarning($"[RemoteContentBrowser] 서버에 Unity {Minor} 빌드가 없어 {pick} 빌드를 받는다. 동작은 보장되지 않는다 (R1-2)");
+                }
+            }
+
             Log("catalog: " + CatalogUrl);
             var cat = await ContentLoader.LoadCatalogAsync(CatalogUrl);
             Log("  -> " + cat);
             m_CatalogLoaded = cat.Succeeded;
             if (m_CatalogLoaded)
                 await RefreshListAsync();
-            else
-                await LogAvailableVersionsAsync();
-        }
-
-        [System.Serializable]
-        sealed class VersionList { public string[] versions; }
-
-        // 가장 흔한 실패는 서버에 이 Unity 버전의 빌드가 없는 것이다 (R1-2).
-        // 클라우드 업로드 스크립트가 <루트>/versions.json 에 올린 목록으로 알려준다. 로컬 서버에는 없으므로 조용히 넘어간다.
-        async Task LogAvailableVersionsAsync()
-        {
-            using var req = UnityEngine.Networking.UnityWebRequest.Get(ServerRoot.TrimEnd('/') + "/versions.json");
-            var op = req.SendWebRequest();
-            while (!op.isDone) await Task.Yield();
-            if (req.result != UnityEngine.Networking.UnityWebRequest.Result.Success) return;
-            var list = JsonUtility.FromJson<VersionList>(req.downloadHandler.text);
-            if (list?.versions == null) return;
-            Log(System.Array.IndexOf(list.versions, Minor) >= 0
-                ? $"  server has a Unity {Minor} build; check the network or platform ({PlatformFolder()})"
-                : $"  no build for Unity {Minor} on this server. Available: {string.Join(", ", list.versions)}");
+            else if (versions != null)
+                Log($"  server lists Unity {m_ServerMinor}; check the network or platform ({PlatformFolder()})");
         }
 
         // ---------------------------------------------------------------- 2. 목록과 다운로드 크기
@@ -252,7 +259,8 @@ namespace AddressablesWork.Loader
         {
             string v;
             if (!string.IsNullOrEmpty(v = Arg("-sampleServer"))) ServerRoot = v;
-            if (!string.IsNullOrEmpty(v = Arg("-sampleUnityVersion"))) m_UnityMinor = v;   // 버전 없음 안내 확인용
+            if (!string.IsNullOrEmpty(v = Arg("-sampleUnityVersion"))) m_UnityMinor = v;   // 다른 버전인 척 (버전 없음·하위 버전 대체 확인용)
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-sampleNoFallback") >= 0) AllowLowerVersion = false;
 
             // 자동 확인: -sampleAuto <결과 폴더> → 캐시 비우기부터 해제까지 한 번 돌고 sample.txt, sample.png 를 쓰고 종료
             string autoDir = Arg("-sampleAuto");
